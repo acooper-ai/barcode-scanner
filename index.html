@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { font-family: sans-serif; text-align: center; padding: 10px; }
+      #reader { width: 100%; max-width: 400px; margin: auto; }
+      #status { font-weight: bold; margin-top: 15px; color: #333; }
+    </style>
+  </head>
+  <body>
+    <h2>Live Inventory Scanner</h2>
+    <div id="reader"></div>
+    <p id="status">Point camera at a barcode...</p>
+
+    <script>
+      // ⚠️ REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+      const GOOGLE_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+
+      function onScanSuccess(decodedText) {
+        document.getElementById('status').innerText = "Scanned: " + decodedText + " | Saving...";
+        html5QrCode.pause();
+
+        // Send data directly to Google Sheet
+        fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ barcode: decodedText })
+        })
+        .then(() => {
+          document.getElementById('status').innerText = "Saved: " + decodedText;
+          setTimeout(() => html5QrCode.resume(), 1500);
+        })
+        .catch(err => {
+          document.getElementById('status').innerText = "Error saving data.";
+          setTimeout(() => html5QrCode.resume(), 1500);
+        });
+      }
+
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 150 } },
+        onScanSuccess
+      );
+    </script>
+  </body>
+</html>
