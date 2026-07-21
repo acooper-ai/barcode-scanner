@@ -64,74 +64,72 @@
     </div>
 
     <script>
-  // ⚠️ YOUR GOOGLE APPS SCRIPT WEB APP URL
-  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzoOBe4k2mKsGmtHq3b-w79Qa_48OHiEyw2wJAaqrDoQ7fpdT3y89nzNg0XtGLSxGcP/exec";
+      // Your Google Apps Script Web App URL
+      const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBm9drX4VH9So3X14weFcVDvQ9jVD_nX3TvBCAaPQ4e-aJCoPZ6bAiIMWL2QaYWRUB/exec";
 
-  const statusEl = document.getElementById("status");
-  let html5QrCode;
+      const statusEl = document.getElementById("status");
+      let html5QrCode;
 
-  // Triggered automatically when a barcode is detected
-  function onScanSuccess(decodedText, decodedResult) {
-    statusEl.innerText = "Scanned: " + decodedText + " | Saving...";
-    statusEl.style.color = "#0056b3";
+      // Triggered automatically when a barcode is detected
+      function onScanSuccess(decodedText, decodedResult) {
+        statusEl.innerText = "Scanned: " + decodedText + " | Saving...";
+        statusEl.style.color = "#0056b3";
 
-    // Pause camera stream while sending
-    html5QrCode.pause();
+        // Pause camera stream while sending
+        html5QrCode.pause();
 
-    // Send payload using URLSearchParams (Native Google form encoding)
-    const payload = new URLSearchParams();
-    payload.append("barcode", decodedText);
+        // Attach barcode directly to the URL string for GET request
+        const requestUrl = GOOGLE_SCRIPT_URL + "?barcode=" + encodeURIComponent(decodedText);
 
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      body: payload
-    })
-      .then(() => {
-        statusEl.innerText = "Saved: " + decodedText;
-        statusEl.style.color = "#28a745";
-        
-        // Resume scanning after 1.5 seconds
-        setTimeout(() => {
-          statusEl.innerText = "Ready for next scan...";
-          statusEl.style.color = "#495057";
-          html5QrCode.resume();
-        }, 1500);
-      })
-      .catch((err) => {
-        statusEl.innerText = "Error saving data. Retrying...";
-        statusEl.style.color = "#dc3545";
-        
-        setTimeout(() => {
-          html5QrCode.resume();
-        }, 1500);
+        fetch(requestUrl, {
+          method: "GET",
+          mode: "no-cors"
+        })
+          .then(() => {
+            statusEl.innerText = "Saved: " + decodedText;
+            statusEl.style.color = "#28a745";
+            
+            // Resume scanning after 1.5 seconds
+            setTimeout(() => {
+              statusEl.innerText = "Ready for next scan...";
+              statusEl.style.color = "#495057";
+              html5QrCode.resume();
+            }, 1500);
+          })
+          .catch((err) => {
+            statusEl.innerText = "Error saving data. Retrying...";
+            statusEl.style.color = "#dc3545";
+            
+            setTimeout(() => {
+              html5QrCode.resume();
+            }, 1500);
+          });
+      }
+
+      // Initialize scanner on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        html5QrCode = new Html5Qrcode("reader");
+
+        html5QrCode
+          .start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 150 }
+            },
+            onScanSuccess,
+            (errorMessage) => {
+              // Ignore frame-by-frame read attempts
+            }
+          )
+          .then(() => {
+            statusEl.innerText = "Ready for next scan...";
+          })
+          .catch((err) => {
+            statusEl.innerText = "Camera access error: " + err;
+            statusEl.style.color = "#dc3545";
+          });
       });
-  }
-
-  // Initialize scanner on page load
-  document.addEventListener("DOMContentLoaded", function () {
-    html5QrCode = new Html5Qrcode("reader");
-
-    html5QrCode
-      .start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 150 }
-        },
-        onScanSuccess,
-        (errorMessage) => {
-          // Ignore frame-by-frame read attempts
-        }
-      )
-      .then(() => {
-        statusEl.innerText = "Ready for next scan...";
-      })
-      .catch((err) => {
-        statusEl.innerText = "Camera access error: " + err;
-        statusEl.style.color = "#dc3545";
-      });
-  });
-</script>
+    </script>
   </body>
 </html>
