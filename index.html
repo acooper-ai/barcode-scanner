@@ -1,51 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Barcode Scanner</title>
+    <!-- HTML5 QRCode Library via Cloudflare CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-      body { font-family: sans-serif; text-align: center; padding: 10px; }
-      #reader { width: 100%; max-width: 400px; margin: auto; }
-      #status { font-weight: bold; margin-top: 15px; color: #333; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        text-align: center;
+        background-color: #f8f9fa;
+        color: #333;
+        margin: 0;
+        padding: 20px;
+      }
+      h2 {
+        margin-bottom: 5px;
+      }
+      p.subtitle {
+        color: #6c757d;
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+      #reader {
+        width: 100%;
+        max-width: 450px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      #status-box {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #ffffff;
+        max-width: 420px;
+        margin-left: auto;
+        margin-right: auto;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      }
+      #status {
+        font-weight: 600;
+        font-size: 1.1em;
+        margin: 0;
+        color: #495057;
+      }
     </style>
   </head>
   <body>
-    <h2>Live Inventory Scanner</h2>
+    <h2>Barcode Scanner</h2>
+    <p class="subtitle">Point camera at a barcode to record to Google Sheets</p>
+
+    <!-- Camera Viewfinder -->
     <div id="reader"></div>
-    <p id="status">Point camera at a barcode...</p>
+
+    <!-- Status Message Display -->
+    <div id="status-box">
+      <p id="status">Initializing camera...</p>
+    </div>
 
     <script>
-      // ⚠️ REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+      // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
       const GOOGLE_SCRIPT_URL = "https://script.google.com/a/macros/haslandhall.outwood.com/s/AKfycbypbMCD6-pI_NU7pFCOvBCdXwvbV_OnPovtRqQ-ho9oSsj0-dYCY_jib1ZMX3QLLg92/exec";
-                                 
 
-      function onScanSuccess(decodedText) {
-        document.getElementById('status').innerText = "Scanned: " + decodedText + " | Saving...";
+      const statusEl = document.getElementById("status");
+      let html5QrCode;
+
+      // Triggered automatically when a barcode is detected
+      function onScanSuccess(decodedText, decodedResult) {
+        statusEl.innerText = "Scanned: " + decodedText + " | Saving...";
+        statusEl.style.color = "#0056b3";
+
+        // Temporarily pause the scanner while saving
         html5QrCode.pause();
 
-        // Send data directly to Google Sheet
+        // Post data to Google Apps Script
         fetch(GOOGLE_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "text/plain"
+          },
           body: JSON.stringify({ barcode: decodedText })
         })
-        .then(() => {
-          document.getElementById('status').innerText = "Saved: " + decodedText;
-          setTimeout(() => html5QrCode.resume(), 1500);
-        })
-        .catch(err => {
-          document.getElementById('status').innerText = "Error saving data.";
-          setTimeout(() => html5QrCode.resume(), 1500);
-        });
+          .then(() => {
+            statusEl.innerText = "Saved: " + decodedText;
+            statusEl.style.color = "#28a745";
+            
+            // Resume scanning after 1.5 seconds
+            setTimeout(() => {
+              statusEl.innerText = "Ready for next scan...";
+              statusEl.style.color = "#495057";
+              html5QrCode.resume();
+            }, 1500);
+          })
+          .catch((err) => {
+            statusEl.innerText = "Error saving data. Retrying...";
+            statusEl.style.color = "#dc3545";
+            
+            setTimeout(() => {
+              html5QrCode.resume();
+            }, 1500);
+          });
       }
 
-      const html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 150 } },
-        onScanSuccess
-      );
+      // Initialize scanner on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        html5QrCode = new Html5Qrcode("reader");
+
+        // Start live camera stream (uses rear camera)
+        html5QrCode
+          .start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 150 }
+            },
+            onScanSuccess,
+            (errorMessage) => {
+              // Ignore frame read errors
+            }
+          )
+          .then(() => {
+            statusEl.innerText = "Ready for next scan...";
+          })
+          .catch((err) => {
+            statusEl.innerText = "Camera access error: " + err;
+            statusEl.style.color = "#dc3545";
+          });
+      });
     </script>
   </body>
 </html>
