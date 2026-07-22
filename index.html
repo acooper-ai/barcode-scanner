@@ -46,8 +46,13 @@
       #status {
         font-weight: 600;
         font-size: 1.1em;
-        margin: 0;
+        margin: 0 0 5px 0;
         color: #495057;
+      }
+      #queue-status {
+        font-size: 0.85em;
+        color: #6c757d;
+        margin: 0;
       }
     </style>
   </head>
@@ -61,55 +66,98 @@
     <!-- Status Message Display -->
     <div id="status-box">
       <p id="status">Initializing camera...</p>
+      <p id="queue-status">(0 pending uploads)</p>
     </div>
 
     <script>
       const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4NbtRfMjhMRuWTw5DqQrIlNGNHWFVA9RAYUnIiexDVp0xoreyzqJHFjPeFogf8cxa/exec";
 
       const statusEl = document.getElementById("status");
+      const queueStatusEl = document.getElementById("queue-status");
       let html5QrCode;
 
-      // Smart cooldown variables
-      let isProcessing = false;
+      // Initialize persistent queue from LocalStorage
+      let scanQueue = JSON.parse(localStorage.getItem("barcodeQueue") || "[]");
+      let isUploading = false;
       let lastScannedCode = "";
       let lastScannedTime = 0;
 
+      // Save queue state to persistent browser storage
+      function saveQueue() {
+        localStorage.setItem("barcodeQueue", JSON.stringify(scanQueue));
+        updateQueueUI();
+      }
+
+      function updateQueueUI() {
+        const count = scanQueue.length;
+        if (count === 0) {
+          queueStatusEl.innerText = "All scans uploaded to Google Sheets ✓";
+          queueStatusEl.style.color = "#28a745";
+        } else {
+          queueStatusEl.innerText = ` Uploading in background... (${count} left in queue)`;
+          queueStatusEl.style.color = "#fd7e14";
+        }
+      }
+
+      // 1. Instant Scan Handling (Stacking onto Queue)
       function onScanSuccess(decodedText, decodedResult) {
         const now = Date.now();
 
-        // 1. Prevent scanning the exact same barcode multiple times within 1.5 seconds
+        // Prevent scanning the exact same barcode again within 1.5 seconds
         if (decodedText === lastScannedCode && (now - lastScannedTime) < 1500) {
           return;
         }
 
-        // 2. Prevent rapid multi-firing while processing
-        if (isProcessing) return;
-        isProcessing = true;
-
         lastScannedCode = decodedText;
         lastScannedTime = now;
 
-        // 3. Instant UI feedback (don't wait for server)
-        statusEl.innerText = "✓ Saved: " + decodedText;
-        statusEl.style.color = "#28a745";
+        // Push barcode to the upload stack
+        scanQueue.push(decodedText);
+        saveQueue();
 
-        // 4. Send request in the background (Non-blocking / Fire-and-forget)
-        const requestUrl = GOOGLE_SCRIPT_URL + "?barcode=" + encodeURIComponent(decodedText);
-        fetch(requestUrl, {
-          method: "GET",
-          mode: "no-cors"
-        }).catch((err) => {
-          console.error("Failed to save barcode background task:", err);
-        });
+        // Instant UI Feedback
+        statusEl.innerText = "✓ Scanned: " + decodedText;
+        statusEl.style.color = "#0056b3";
 
-        // 5. Unlock scanner almost instantly (300ms pause) so you can scan the next barcode right away
-        setTimeout(() => {
-          isProcessing = false;
-        }, 300);
+        // Trigger background worker
+        processQueue();
+      }
+
+      // 2. Background Upload Worker
+      async function processQueue() {
+        if (isUploading || scanQueue.length === 0) return;
+
+        isUploading = true;
+        const currentBarcode = scanQueue[0]; // Look at top item
+        const requestUrl = GOOGLE_SCRIPT_URL + "?barcode=" + encodeURIComponent(currentBarcode);
+
+        try {
+          await fetch(requestUrl, {
+            method: "GET",
+            mode: "no-cors"
+          });
+
+          // Successful transmission -> remove item from queue stack
+          scanQueue.shift();
+          saveQueue();
+        } catch (err) {
+          console.error("Upload error, retrying shortly...", err);
+          // Wait 2 seconds before retrying if there's a connection issue
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        } finally {
+          isUploading = false;
+          // Loop if there are more items waiting in queue
+          if (scanQueue.length > 0) {
+            processQueue();
+          }
+        }
       }
 
       // Initialize scanner on page load
       document.addEventListener("DOMContentLoaded", function () {
+        updateQueueUI();
+        processQueue(); // Resume any pending uploads from previous sessions
+
         html5QrCode = new Html5Qrcode("reader");
 
         html5QrCode
