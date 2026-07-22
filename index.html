@@ -15,105 +15,78 @@
         margin: 0;
         padding: 20px;
       }
-      h2 {
-        margin-bottom: 5px;
-      }
+      h2 { margin-bottom: 5px; }
       p.subtitle {
-        color: #6c757d;
-        margin-top: 0;
-        margin-bottom: 20px;
-        font-size: 0.9em;
+        color: #6c757d; margin-top: 0; margin-bottom: 20px; font-size: 0.9em;
       }
+      
+      /* Dropdown Menu Styles */
+      #tab-selector-container {
+        margin-bottom: 15px;
+      }
+      select {
+        padding: 10px 15px;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 2px solid #0056b3;
+        background-color: #ffffff;
+        color: #333;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+        max-width: 90%;
+        width: 300px;
+      }
+
       /* Viewfinder container relative wrapper for overlay */
       .scanner-container {
-        position: relative;
-        width: 100%;
-        max-width: 600px;
-        margin: 0 auto;
+        position: relative; width: 100%; max-width: 600px; margin: 0 auto;
       }
       #reader {
-        width: 100%;
-        background: #ffffff;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        width: 100%; background: #ffffff; border-radius: 12px;
+        overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
       /* Big Green Tick Overlay */
       #tick-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(40, 167, 69, 0.85);
-        color: #ffffff;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
-        z-index: 10;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.15s ease-in-out;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(40, 167, 69, 0.85); color: #ffffff;
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; border-radius: 12px; z-index: 10;
+        opacity: 0; pointer-events: none; transition: opacity 0.15s ease-in-out;
       }
-      #tick-overlay.show {
-        opacity: 1;
-      }
-      #tick-overlay .checkmark {
-        font-size: 90px;
-        line-height: 1;
-      }
-      #tick-overlay .tick-text {
-        font-size: 1.2em;
-        font-weight: bold;
-        margin-top: 10px;
-      }
+      #tick-overlay.show { opacity: 1; }
+      #tick-overlay .checkmark { font-size: 90px; line-height: 1; }
+      #tick-overlay .tick-text { font-size: 1.2em; font-weight: bold; margin-top: 10px; }
+      
       #status-box {
-        margin-top: 20px;
-        padding: 15px;
-        border-radius: 8px;
-        background-color: #ffffff;
-        max-width: 500px;
-        margin-left: auto;
-        margin-right: auto;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        margin-top: 20px; padding: 15px; border-radius: 8px;
+        background-color: #ffffff; max-width: 500px; margin-left: auto;
+        margin-right: auto; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
       }
-      #status {
-        font-weight: 600;
-        font-size: 1.1em;
-        margin: 0 0 5px 0;
-        color: #495057;
-      }
-      #queue-status {
-        font-size: 0.85em;
-        color: #6c757d;
-        margin: 0 0 10px 0;
-      }
+      #status { font-weight: 600; font-size: 1.1em; margin: 0 0 5px 0; color: #495057; }
+      #queue-status { font-size: 0.85em; color: #6c757d; margin: 0 0 10px 0; }
       .reset-btn {
-        background: #e9ecef;
-        border: 1px solid #ced4da;
-        color: #495057;
-        padding: 6px 12px;
-        font-size: 0.8em;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 600;
+        background: #e9ecef; border: 1px solid #ced4da; color: #495057;
+        padding: 6px 12px; font-size: 0.8em; border-radius: 6px;
+        cursor: pointer; font-weight: 600;
       }
-      .reset-btn:hover {
-        background: #dee2e6;
-      }
+      .reset-btn:hover { background: #dee2e6; }
     </style>
   </head>
   <body>
     <h2>Barcode Scanner</h2>
-    <p class="subtitle">Point camera at a barcode to record to Google Sheets</p>
+    <p class="subtitle">Select an activity and point camera at a barcode</p>
+
+    <!-- Dynamic Event / Tab Selector -->
+    <div id="tab-selector-container">
+      <select id="sheetSelect">
+        <option value="">Loading activities...</option>
+      </select>
+    </div>
 
     <!-- Camera Viewfinder & Tick Overlay Wrapper -->
     <div class="scanner-container">
       <div id="reader"></div>
-      
-      <!-- Big Green Tick Flash Element -->
       <div id="tick-overlay">
         <div class="checkmark">✓</div>
         <div class="tick-text" id="tick-code-text">Scanned!</div>
@@ -128,20 +101,48 @@
     </div>
 
     <script>
-      const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4NbtRfMjhMRuWTw5DqQrIlNGNHWFVA9RAYUnIiexDVp0xoreyzqJHFjPeFogf8cxa/exec";
+      // MAKE SURE THIS IS YOUR LATEST DEPLOYED APP SCRIPT URL
+      const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3vKF78yAwjudOvUCfkIkV9TzMsZR4VSvH83vncCjfu92EGYkmfEtJULB74FW1Jp35/exec";
 
       const statusEl = document.getElementById("status");
       const queueStatusEl = document.getElementById("queue-status");
       const tickOverlay = document.getElementById("tick-overlay");
       const tickCodeText = document.getElementById("tick-code-text");
+      const sheetSelect = document.getElementById("sheetSelect");
       let html5QrCode;
 
       // Initialize persistent queue & duplicate history from LocalStorage
-      let scanQueue = JSON.parse(localStorage.getItem("barcodeQueue") || "[]");
+      // Note: Because we changed the structure of scanQueue to hold objects, 
+      // we reset it if old string data is found to prevent crashes.
+      let rawQueue = JSON.parse(localStorage.getItem("barcodeQueue") || "[]");
+      if (rawQueue.length > 0 && typeof rawQueue[0] === 'string') {
+        rawQueue = []; // Wipe old formatting
+      }
+      let scanQueue = rawQueue;
       let scannedHistory = JSON.parse(localStorage.getItem("scannedHistory") || "[]");
       
       let isUploading = false;
       let tickTimeout;
+
+      // Fetch tab names from Google Sheets
+      async function loadSheetNames() {
+        try {
+          const response = await fetch(GOOGLE_SCRIPT_URL + "?action=getSheets");
+          const sheetNames = await response.json();
+          
+          sheetSelect.innerHTML = ""; // Clear loading text
+          
+          sheetNames.forEach(name => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.innerText = name;
+            sheetSelect.appendChild(opt);
+          });
+        } catch (error) {
+          console.error("Error loading sheets:", error);
+          sheetSelect.innerHTML = "<option value=''>Error loading list</option>";
+        }
+      }
 
       function saveQueue() {
         localStorage.setItem("barcodeQueue", JSON.stringify(scanQueue));
@@ -159,7 +160,6 @@
         }
       }
 
-      // Show Big Green Tick Overlay briefly
       function flashGreenTick(barcodeText) {
         tickCodeText.innerText = barcodeText;
         tickOverlay.classList.add("show");
@@ -170,7 +170,6 @@
         }, 600);
       }
 
-      // Clear duplicate history memory
       function clearScannedHistory() {
         if (confirm("Reset scanned duplicate history? This allows previously scanned barcodes to be scanned again.")) {
           scannedHistory = [];
@@ -182,6 +181,13 @@
 
       // 1. Instant Scan Handling (Duplicate Check + Tick + Queue)
       function onScanSuccess(decodedText, decodedResult) {
+        // Prevent scanning if tabs haven't loaded
+        if (!sheetSelect.value) {
+          statusEl.innerText = "⚠️ Please wait for activities to load.";
+          statusEl.style.color = "#dc3545";
+          return;
+        }
+
         // --- DUPLICATE CHECK ---
         if (scannedHistory.includes(decodedText)) {
           statusEl.innerText = "⚠️ Duplicate: " + decodedText + " already scanned!";
@@ -193,13 +199,15 @@
         scannedHistory.push(decodedText);
         localStorage.setItem("scannedHistory", JSON.stringify(scannedHistory));
 
-        // Push barcode to background upload stack
-        scanQueue.push(decodedText);
+        const selectedSheet = sheetSelect.value;
+
+        // Push an object containing both barcode and the target tab to the queue
+        scanQueue.push({ barcode: decodedText, sheet: selectedSheet });
         saveQueue();
 
         // Trigger Visual Feedback & Status
         flashGreenTick(decodedText);
-        statusEl.innerText = "✓ Scanned: " + decodedText;
+        statusEl.innerText = "✓ Scanned to [" + selectedSheet + "]";
         statusEl.style.color = "#28a745";
 
         // Trigger background worker
@@ -211,14 +219,13 @@
         if (isUploading || scanQueue.length === 0) return;
 
         isUploading = true;
-        const currentBarcode = scanQueue[0];
-        const requestUrl = GOOGLE_SCRIPT_URL + "?barcode=" + encodeURIComponent(currentBarcode);
+        const currentItem = scanQueue[0];
+        
+        // Build URL sending both the barcode and the specific sheet name
+        const requestUrl = GOOGLE_SCRIPT_URL + "?barcode=" + encodeURIComponent(currentItem.barcode) + "&sheet=" + encodeURIComponent(currentItem.sheet);
 
         try {
-          await fetch(requestUrl, {
-            method: "GET",
-            mode: "no-cors"
-          });
+          await fetch(requestUrl);
 
           // Successful transmission -> remove item from queue stack
           scanQueue.shift();
@@ -236,6 +243,7 @@
 
       // Initialize scanner on page load
       document.addEventListener("DOMContentLoaded", function () {
+        loadSheetNames(); // Call the fetch function right away
         updateQueueUI();
         processQueue();
 
@@ -247,7 +255,6 @@
             {
               fps: 25,
               qrbox: function (viewfinderWidth, viewfinderHeight) {
-                // Modified to create a perfect square
                 const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                 const size = Math.floor(minEdge * 0.75); 
                 return { width: size, height: size };
