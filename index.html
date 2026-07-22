@@ -247,9 +247,10 @@
             {
               fps: 25,
               qrbox: function (viewfinderWidth, viewfinderHeight) {
-                const width = Math.floor(viewfinderWidth * 0.9);
-                const height = Math.floor(viewfinderHeight * 0.35);
-                return { width: width, height: height };
+                // Modified to create a perfect square
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const size = Math.floor(minEdge * 0.75); 
+                return { width: size, height: size };
               }
             },
             onScanSuccess,
