@@ -1,1 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <title>Assembly Scanner</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+      background: #f4f6f8;
+      color: #222;
+      text-align: center;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 20px;
+
+      text-decoration: none;
+      color: #0056b3;
+      font-weight: 600;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: #667085;
+      margin-top: 0;
+      margin-bottom: 25px;
+    }
+
+    select {
+      width: 100%;
+      max-width: 400px;
+
+      padding: 14px 16px;
+
+      font-size: 1.1rem;
+      font-weight: 600;
+
+      border: 2px solid #0056b3;
+      border-radius: 10px;
+
+      background: white;
+      color: #222;
+
+      margin-bottom: 25px;
+    }
+
+    .scanner-box {
+      background: white;
+
+      border-radius: 18px;
+
+      padding: 40px 25px;
+
+      box-shadow: 0 5px 18px rgba(0,0,0,0.08);
+
+      margin-bottom: 20px;
+
+      border: 4px solid #ced4da;
+    }
+
+    .scanner-box.ready {
+      border-color: #28a745;
+    }
+
+    .scanner-box.success {
+      border-color: #28a745;
+      background: #eaf7ee;
+    }
+
+    .scanner-box.error {
+      border-color: #dc3545;
+      background: #fcebec;
+    }
+
+    .status-big {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 15px;
+    }
+
+    .last-code {
+      font-size: 1.6rem;
+      font-weight: 700;
+      word-break: break-word;
+      min-height: 40px;
+    }
+
+    .count {
+      margin-top: 25px;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .queue {
+      margin-top: 10px;
+      color: #667085;
+      font-size: 0.9rem;
+    }
+
+    #scannerInput {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+    }
+
+    .reset-btn {
+      margin-top: 15px;
+
+      background: #e9ecef;
+      border: 1px solid #ced4da;
+
+      padding: 8px 14px;
+
+      border-radius: 7px;
+
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .reset-btn:hover {
+      background: #dee2e6;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="page">
+
+  <a class="back" href="index.html">← Back</a>
+
+  <h1>Assembly Scanner</h1>
+
+  <p class="subtitle">
+    Choose the assembly, then scan student QR codes.
+  </p>
+
+
+  <!-- ASSEMBLY DROPDOWN -->
+
+  <select id="sheetSelect">
+    <option value="">Loading assemblies...</option>
+  </select>
+
+
+  <!-- MAIN SCANNER DISPLAY -->
+
+  <div id="scannerBox" class="scanner-box">
+
+    <div id="statusBig" class="status-big">
+      Select an assembly
+    </div>
+
+    <div id="lastCode" class="last-code">
+      —
+    </div>
+
+  </div>
+
+
+  <div class="count">
+    Scanned this session:
+    <span id="scanCount">0</span>
+  </div>
+
+  <div id="queueStatus" class="queue">
+    (0 pending uploads)
+  </div>
+
+
+  <button class="reset-btn" onclick="clearHistory()">
+    Clear Duplicate Memory
+  </button>
+
+
+  <!--
+    The handheld scanner behaves like a keyboard.
+
+    It types into this invisible box and presses Enter.
+  -->
+
+  <input
+    id="scannerInput"
+    type="text"
+    autocomplete="off"
+  />
+
+</div>
+
+
+<script>
+
+  /*
+    SAME GOOGLE APPS SCRIPT USED BY ENRICHMENTS
+  */
+
+  const GOOGLE_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbz3vKF78yAwjudOvUCfkIkV9TzMsZR4VSvH83vncCjfu92EGYkmfEtJULB74FW1Jp35/exec";
+
+
+  const sheetSelect =
+    document.getElementById("sheetSelect");
+
+  const scannerInput =
+    document.getElementById("scannerInput");
+
+  const scannerBox =
+    document.getElementById("scannerBox");
+
+  const statusBig =
+    document.getElementById("statusBig");
+
+  const lastCode =
+    document.getElementById("lastCode");
+
+  const scanCountEl =
+    document.getElementById("scanCount");
+
+  const queueStatus =
+    document.getElementById("queueStatus");
+
+
+  /*
+    Separate storage from the Enrichment page.
+  */
+
+  let scanQueue =
+    JSON.parse(
+      localStorage.getItem("assemblyQueue") || "[]"
+    );
+
+  let scannedHistory =
+    JSON.parse(
+      localStorage.getItem("assemblyScannedHistory") || "[]"
+    );
+
+  let scanCount = 0;
+
+  let isUploading = false;
+
+
+  /*
+    LOAD GOOGLE SHEET TABS
+  */
+
+  async function loadSheetNames() {
+
+    try {
+
+      const response =
+        await fetch(
+          GOOGLE_SCRIPT_URL + "?action=getSheets"
+        );
+
+      const sheetNames =
+        await response.json();
+
+
+      sheetSelect.innerHTML =
+        '<option value="">Choose assembly...</option>';
+
+
+      /*
+        ONLY SHOW SHEETS BEGINNING WITH "ASSEMBLY"
+      */
+
+      sheetNames
+
+        .filter(name =>
+          name
+            .toLowerCase()
+            .startsWith("assembly")
+        )
+
+        .forEach(name => {
+
+          const option =
+            document.createElement("option");
+
+          option.value = name;
+
+          option.textContent = name;
+
+          sheetSelect.appendChild(option);
+
+        });
+
+
+    }
+    catch (error) {
+
+      console.error(
+        "Error loading assemblies:",
+        error
+      );
+
+      sheetSelect.innerHTML =
+        '<option value="">Error loading assemblies</option>';
+
+    }
+
+  }
+
+
+  /*
+    WHEN AN ASSEMBLY IS SELECTED
+  */
+
+  sheetSelect.addEventListener(
+    "change",
+    function () {
+
+      if (sheetSelect.value) {
+
+        statusBig.textContent =
+          "READY TO SCAN";
+
+        lastCode.textContent =
+          sheetSelect.value;
+
+        scannerBox.className =
+          "scanner-box ready";
+
+        focusScanner();
+
+      }
+      else {
+
+        statusBig.textContent =
+          "Select an assembly";
+
+        lastCode.textContent =
+          "—";
+
+        scannerBox.className =
+          "scanner-box";
+
+      }
+
+    }
+  );
+
+
+  /*
+    KEEP THE HIDDEN INPUT FOCUSED
+  */
+
+  function focusScanner() {
+
+    scannerInput.focus();
+
+  }
+
+
+  document.addEventListener(
+    "click",
+    function () {
+
+      if (sheetSelect.value) {
+
+        focusScanner();
+
+      }
+
+    }
+  );
+
+
+  /*
+    SCANNER INPUT
+
+    Assumption:
+
+    scanner types:
+
+    S123456
+
+    then presses Enter.
+  */
+
+  scannerInput.addEventListener(
+    "keydown",
+    function (event) {
+
+      if (event.key === "Enter") {
+
+        event.preventDefault();
+
+        const scannedText =
+          scannerInput.value.trim();
+
+        scannerInput.value = "";
+
+        processScan(scannedText);
+
+      }
+
+    }
+  );
+
+
+  /*
+    PROCESS SCAN
+  */
+
+  function processScan(scannedText) {
+
+    if (!sheetSelect.value) {
+
+      showError(
+        "Choose an assembly first"
+      );
+
+      return;
+
+    }
+
+
+    if (!scannedText) {
+
+      focusScanner();
+
+      return;
+
+    }
+
+
+    /*
+      DUPLICATE CHECK
+    */
+
+    if (
+      scannedHistory.includes(
+        scannedText
+      )
+    ) {
+
+      showError(
+        "DUPLICATE"
+      );
+
+      lastCode.textContent =
+        scannedText;
+
+      focusScanner();
+
+      return;
+
+    }
+
+
+    /*
+      STORE IN DUPLICATE HISTORY
+    */
+
+    scannedHistory.push(
+      scannedText
+    );
+
+    localStorage.setItem(
+      "assemblyScannedHistory",
+      JSON.stringify(
+        scannedHistory
+      )
+    );
+
+
+    /*
+      ADD TO UPLOAD QUEUE
+    */
+
+    scanQueue.push({
+
+      barcode:
+        scannedText,
+
+      sheet:
+        sheetSelect.value
+
+    });
+
+
+    saveQueue();
+
+
+    /*
+      UPDATE DISPLAY
+    */
+
+    scanCount++;
+
+    scanCountEl.textContent =
+      scanCount;
+
+    statusBig.textContent =
+      "✓ RECORDED";
+
+    lastCode.textContent =
+      scannedText;
+
+    scannerBox.className =
+      "scanner-box success";
+
+
+    /*
+      RETURN TO READY STATE
+    */
+
+    setTimeout(
+      function () {
+
+        statusBig.textContent =
+          "READY TO SCAN";
+
+        lastCode.textContent =
+          sheetSelect.value;
+
+        scannerBox.className =
+          "scanner-box ready";
+
+      },
+      700
+    );
+
+
+    /*
+      UPLOAD
+    */
+
+    processQueue();
+
+    focusScanner();
+
+  }
+
+
+  /*
+    ERROR DISPLAY
+  */
+
+  function showError(message) {
+
+    statusBig.textContent =
+      message;
+
+    scannerBox.className =
+      "scanner-box error";
+
+
+    setTimeout(
+      function () {
+
+        if (sheetSelect.value) {
+
+          statusBig.textContent =
+            "READY TO SCAN";
+
+          lastCode.textContent =
+            sheetSelect.value;
+
+          scannerBox.className =
+            "scanner-box ready";
+
+        }
+
+      },
+      1200
+    );
+
+  }
+
+
+  /*
+    SAVE QUEUE
+  */
+
+  function saveQueue() {
+
+    localStorage.setItem(
+      "assemblyQueue",
+      JSON.stringify(
+        scanQueue
+      )
+    );
+
+    updateQueueUI();
+
+  }
+
+
+  /*
+    QUEUE DISPLAY
+  */
+
+  function updateQueueUI() {
+
+    const count =
+      scanQueue.length;
+
+
+    if (count === 0) {
+
+      queueStatus.textContent =
+        "All scans uploaded to Google Sheets ✓";
+
+      queueStatus.style.color =
+        "#28a745";
+
+    }
+    else {
+
+      queueStatus.textContent =
+        "Uploading in background... (" +
+        count +
+        " left in queue)";
+
+      queueStatus.style.color =
+        "#fd7e14";
+
+    }
+
+  }
+
+
+  /*
+    UPLOAD QUEUE
+  */
+
+  async function processQueue() {
+
+    if (
+      isUploading ||
+      scanQueue.length === 0
+    ) {
+
+      return;
+
+    }
+
+
+    isUploading = true;
+
+
+    const currentItem =
+      scanQueue[0];
+
+
+    const requestUrl =
+
+      GOOGLE_SCRIPT_URL +
+
+      "?barcode=" +
+
+      encodeURIComponent(
+        currentItem.barcode
+      ) +
+
+      "&sheet=" +
+
+      encodeURIComponent(
+        currentItem.sheet
+      );
+
+
+    try {
+
+      await fetch(
+        requestUrl
+      );
+
+
+      scanQueue.shift();
+
+      saveQueue();
+
+    }
+    catch (error) {
+
+      console.error(
+        "Upload error:",
+        error
+      );
+
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            2000
+          )
+      );
+
+    }
+    finally {
+
+      isUploading = false;
+
+
+      if (
+        scanQueue.length > 0
+      ) {
+
+        processQueue();
+
+      }
+
+    }
+
+  }
+
+
+  /*
+    CLEAR DUPLICATE MEMORY
+  */
+
+  function clearHistory() {
+
+    if (
+      confirm(
+        "Clear duplicate scan memory?"
+      )
+    ) {
+
+      scannedHistory = [];
+
+      localStorage.removeItem(
+        "assemblyScannedHistory"
+      );
+
+
+      statusBig.textContent =
+        "Duplicate memory cleared";
+
+      setTimeout(
+        function () {
+
+          if (sheetSelect.value) {
+
+            statusBig.textContent =
+              "READY TO SCAN";
+
+          }
+
+        },
+        1000
+      );
+
+    }
+
+  }
+
+
+  /*
+    START PAGE
+  */
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+      loadSheetNames();
+
+      updateQueueUI();
+
+      processQueue();
+
+      focusScanner();
+
+    }
+  );
+
+</script>
+
+</body>
+</html>
