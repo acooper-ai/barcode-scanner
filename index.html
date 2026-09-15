@@ -1,280 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QR Code Scanner</title>
-    <!-- HTML5 QRCode Library via Cloudflare CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        text-align: center;
-        background-color: #f8f9fa;
-        color: #333;
-        margin: 0;
-        padding: 20px;
-      }
-      h2 { margin-bottom: 5px; }
-      p.subtitle {
-        color: #6c757d; margin-top: 0; margin-bottom: 20px; font-size: 0.9em;
-      }
-      
-      /* Dropdown Menu Styles */
-      #tab-selector-container {
-        margin-bottom: 15px;
-      }
-      select {
-        padding: 10px 15px;
-        font-size: 1rem;
-        border-radius: 8px;
-        border: 2px solid #0056b3;
-        background-color: #ffffff;
-        color: #333;
-        font-weight: 600;
-        cursor: pointer;
-        outline: none;
-        max-width: 90%;
-        width: 300px;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Scanner</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 25px;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 850px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2.4rem;
+    }
+
+    .subtitle {
+      margin: 0 0 35px;
+      color: #667085;
+      font-size: 1rem;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .choice {
+      text-decoration: none;
+      color: inherit;
+      background: white;
+      border-radius: 18px;
+      padding: 45px 25px;
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+      border: 3px solid transparent;
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease;
+    }
+
+    .choice:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    }
+
+    .assembly:hover {
+      border-color: #0056b3;
+    }
+
+    .enrichments:hover {
+      border-color: #198754;
+    }
+
+    .icon {
+      font-size: 4rem;
+      margin-bottom: 18px;
+    }
+
+    .choice-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .choice-description {
+      color: #667085;
+      font-size: 1rem;
+      line-height: 1.5;
+      max-width: 300px;
+    }
+
+    .assembly .choice-title {
+      color: #0056b3;
+    }
+
+    .enrichments .choice-title {
+      color: #198754;
+    }
+
+    @media (max-width: 650px) {
+      .choices {
+        grid-template-columns: 1fr;
       }
 
-      /* Viewfinder container relative wrapper for overlay */
-      .scanner-container {
-        position: relative; width: 100%; max-width: 600px; margin: 0 auto;
+      .choice {
+        min-height: 210px;
+        padding: 35px 20px;
       }
-      #reader {
-        width: 100%; background: #ffffff; border-radius: 12px;
-        overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      }
-      /* Big Green Tick Overlay */
-      #tick-overlay {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(40, 167, 69, 0.85); color: #ffffff;
-        display: flex; flex-direction: column; align-items: center;
-        justify-content: center; border-radius: 12px; z-index: 10;
-        opacity: 0; pointer-events: none; transition: opacity 0.15s ease-in-out;
-      }
-      #tick-overlay.show { opacity: 1; }
-      #tick-overlay .checkmark { font-size: 90px; line-height: 1; }
-      #tick-overlay .tick-text { font-size: 1.2em; font-weight: bold; margin-top: 10px; }
-      
-      #status-box {
-        margin-top: 20px; padding: 15px; border-radius: 8px;
-        background-color: #ffffff; max-width: 500px; margin-left: auto;
-        margin-right: auto; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-      }
-      #status { font-weight: 600; font-size: 1.1em; margin: 0 0 5px 0; color: #495057; }
-      #queue-status { font-size: 0.85em; color: #6c757d; margin: 0 0 10px 0; }
-      .reset-btn {
-        background: #e9ecef; border: 1px solid #ced4da; color: #495057;
-        padding: 6px 12px; font-size: 0.8em; border-radius: 6px;
-        cursor: pointer; font-weight: 600;
-      }
-      .reset-btn:hover { background: #dee2e6; }
-    </style>
-  </head>
-  <body>
-    <h2>QR Code Scanner</h2>
-    <p class="subtitle">Select an activity and point camera at a QR Code</p>
 
-    <p>Click <a href="https://docs.google.com/spreadsheets/d/15cIbIVNORDN8hs-QIoaXO78ReWvwmSo-Sz9xxfwjafI/">here</a> for the Assembly Tracker</p>
+      h1 {
+        font-size: 2rem;
+      }
 
-    <!-- Dynamic Event / Tab Selector -->
-    <div id="tab-selector-container">
-      <select id="sheetSelect">
-        <option value="">Loading activities...</option>
-      </select>
+      .choice-title {
+        font-size: 1.7rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="page">
+
+    <h1>QR Scanner</h1>
+    <p class="subtitle">Choose what you are scanning for.</p>
+
+    <div class="choices">
+
+      <a class="choice assembly" href="assembly.html">
+        <div class="icon">▦</div>
+
+        <div class="choice-title">
+          ASSEMBLY
+        </div>
+
+        <div class="choice-description">
+          Use the handheld QR scanner to record assembly attendance.
+        </div>
+      </a>
+
+      <a class="choice enrichments" href="enrichments.html">
+        <div class="icon">▣</div>
+
+        <div class="choice-title">
+          ENRICHMENTS
+        </div>
+
+        <div class="choice-description">
+          Use the device camera to scan students into enrichment activities.
+        </div>
+      </a>
+
     </div>
 
-    <!-- Camera Viewfinder & Tick Overlay Wrapper -->
-    <div class="scanner-container">
-      <div id="reader"></div>
-      <div id="tick-overlay">
-        <div class="checkmark">✓</div>
-        <div class="tick-text" id="tick-code-text">Scanned!</div>
-      </div>
-    </div>
+  </main>
 
-    <!-- Status Message Display -->
-    <div id="status-box">
-      <p id="status">Initializing camera...</p>
-      <p id="queue-status">(0 pending uploads)</p>
-      <button class="reset-btn" onclick="clearScannedHistory()">Clear Duplicate Memory</button>
-    </div>
-
-    <script>
-      // MAKE SURE THIS IS YOUR LATEST DEPLOYED APP SCRIPT URL
-      const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3vKF78yAwjudOvUCfkIkV9TzMsZR4VSvH83vncCjfu92EGYkmfEtJULB74FW1Jp35/exec";
-
-      const statusEl = document.getElementById("status");
-      const queueStatusEl = document.getElementById("queue-status");
-      const tickOverlay = document.getElementById("tick-overlay");
-      const tickCodeText = document.getElementById("tick-code-text");
-      const sheetSelect = document.getElementById("sheetSelect");
-      let html5QrCode;
-
-      // Initialize persistent queue & duplicate history from LocalStorage
-      // Note: Because we changed the structure of scanQueue to hold objects, 
-      // we reset it if old string data is found to prevent crashes.
-      let rawQueue = JSON.parse(localStorage.getItem("barcodeQueue") || "[]");
-      if (rawQueue.length > 0 && typeof rawQueue[0] === 'string') {
-        rawQueue = []; // Wipe old formatting
-      }
-      let scanQueue = rawQueue;
-      let scannedHistory = JSON.parse(localStorage.getItem("scannedHistory") || "[]");
-      
-      let isUploading = false;
-      let tickTimeout;
-
-      // Fetch tab names from Google Sheets
-      async function loadSheetNames() {
-        try {
-          const response = await fetch(GOOGLE_SCRIPT_URL + "?action=getSheets");
-          const sheetNames = await response.json();
-          
-          sheetSelect.innerHTML = ""; // Clear loading text
-          
-          sheetNames.forEach(name => {
-            const opt = document.createElement("option");
-            opt.value = name;
-            opt.innerText = name;
-            sheetSelect.appendChild(opt);
-          });
-        } catch (error) {
-          console.error("Error loading sheets:", error);
-          sheetSelect.innerHTML = "<option value=''>Error loading list</option>";
-        }
-      }
-
-      function saveQueue() {
-        localStorage.setItem("barcodeQueue", JSON.stringify(scanQueue));
-        updateQueueUI();
-      }
-
-      function updateQueueUI() {
-        const count = scanQueue.length;
-        if (count === 0) {
-          queueStatusEl.innerText = "All scans uploaded to Google Sheets ✓";
-          queueStatusEl.style.color = "#28a745";
-        } else {
-          queueStatusEl.innerText = `Uploading in background... (${count} left in queue)`;
-          queueStatusEl.style.color = "#fd7e14";
-        }
-      }
-
-      function flashGreenTick(barcodeText) {
-        tickCodeText.innerText = barcodeText;
-        tickOverlay.classList.add("show");
-
-        clearTimeout(tickTimeout);
-        tickTimeout = setTimeout(() => {
-          tickOverlay.classList.remove("show");
-        }, 600);
-      }
-
-      function clearScannedHistory() {
-        if (confirm("Reset scanned duplicate history? This allows previously scanned barcodes to be scanned again.")) {
-          scannedHistory = [];
-          localStorage.removeItem("scannedHistory");
-          statusEl.innerText = "Duplicate history cleared. Ready to scan.";
-          statusEl.style.color = "#495057";
-        }
-      }
-
-      // 1. Instant Scan Handling (Duplicate Check + Tick + Queue)
-      function onScanSuccess(decodedText, decodedResult) {
-        // Prevent scanning if tabs haven't loaded
-        if (!sheetSelect.value) {
-          statusEl.innerText = "⚠️ Please wait for activities to load.";
-          statusEl.style.color = "#dc3545";
-          return;
-        }
-
-        // --- DUPLICATE CHECK ---
-        if (scannedHistory.includes(decodedText)) {
-          statusEl.innerText = "⚠️ Duplicate: " + decodedText + " already scanned!";
-          statusEl.style.color = "#dc3545";
-          return;
-        }
-
-        // Mark barcode as scanned in duplicate history
-        scannedHistory.push(decodedText);
-        localStorage.setItem("scannedHistory", JSON.stringify(scannedHistory));
-
-        const selectedSheet = sheetSelect.value;
-
-        // Push an object containing both barcode and the target tab to the queue
-        scanQueue.push({ barcode: decodedText, sheet: selectedSheet });
-        saveQueue();
-
-        // Trigger Visual Feedback & Status
-        flashGreenTick(decodedText);
-        statusEl.innerText = "✓ Scanned to [" + selectedSheet + "]";
-        statusEl.style.color = "#28a745";
-
-        // Trigger background worker
-        processQueue();
-      }
-
-      // 2. Background Upload Worker
-      async function processQueue() {
-        if (isUploading || scanQueue.length === 0) return;
-
-        isUploading = true;
-        const currentItem = scanQueue[0];
-        
-        // Build URL sending both the barcode and the specific sheet name
-        const requestUrl = GOOGLE_SCRIPT_URL + "?barcode=" + encodeURIComponent(currentItem.barcode) + "&sheet=" + encodeURIComponent(currentItem.sheet);
-
-        try {
-          await fetch(requestUrl);
-
-          // Successful transmission -> remove item from queue stack
-          scanQueue.shift();
-          saveQueue();
-        } catch (err) {
-          console.error("Upload error, retrying shortly...", err);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        } finally {
-          isUploading = false;
-          if (scanQueue.length > 0) {
-            processQueue();
-          }
-        }
-      }
-
-      // Initialize scanner on page load
-      document.addEventListener("DOMContentLoaded", function () {
-        loadSheetNames(); // Call the fetch function right away
-        updateQueueUI();
-        processQueue();
-
-        html5QrCode = new Html5Qrcode("reader");
-
-        html5QrCode
-          .start(
-            { facingMode: "environment" },
-            {
-              fps: 25,
-              qrbox: function (viewfinderWidth, viewfinderHeight) {
-                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const size = Math.floor(minEdge * 0.75); 
-                return { width: size, height: size };
-              }
-            },
-            onScanSuccess,
-            (errorMessage) => {
-              // Ignore frame-by-frame read attempts
-            }
-          )
-          .then(() => {
-            statusEl.innerText = "Ready to scan...";
-          })
-          .catch((err) => {
-            statusEl.innerText = "Camera access error: " + err;
-            statusEl.style.color = "#dc3545";
-          });
-      });
-    </script>
-  </body>
+</body>
 </html>
