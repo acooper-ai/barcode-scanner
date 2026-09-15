@@ -132,12 +132,14 @@
           
           sheetSelect.innerHTML = ""; // Clear loading text
           
-          sheetNames.forEach(name => {
-            const opt = document.createElement("option");
-            opt.value = name;
-            opt.innerText = name;
-            sheetSelect.appendChild(opt);
-          });
+          sheetNames
+  .filter(name => !name.toLowerCase().startsWith("assembly"))
+  .forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.innerText = name;
+    sheetSelect.appendChild(opt);
+  });
         } catch (error) {
           console.error("Error loading sheets:", error);
           sheetSelect.innerHTML = "<option value=''>Error loading list</option>";
