@@ -335,39 +335,25 @@
     WHEN AN ASSEMBLY IS SELECTED
   */
 
-  sheetSelect.addEventListener(
-    "change",
-    function () {
+sheetSelect.addEventListener("change", function () {
 
-      if (sheetSelect.value) {
+  if (sheetSelect.value) {
 
-        statusBig.textContent =
-          "READY TO SCAN";
+    statusBig.textContent = "READY TO SCAN";
+    lastCode.textContent = sheetSelect.value;
+    scannerBox.className = "scanner-box ready";
 
-        lastCode.textContent =
-          sheetSelect.value;
+    setTimeout(focusScanner, 100);
 
-        scannerBox.className =
-          "scanner-box ready";
+  } else {
 
-        focusScanner();
+    statusBig.textContent = "Select an assembly";
+    lastCode.textContent = "—";
+    scannerBox.className = "scanner-box";
 
-      }
-      else {
+  }
 
-        statusBig.textContent =
-          "Select an assembly";
-
-        lastCode.textContent =
-          "—";
-
-        scannerBox.className =
-          "scanner-box";
-
-      }
-
-    }
-  );
+});
 
 
   /*
