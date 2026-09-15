@@ -381,18 +381,18 @@
   }
 
 
-  document.addEventListener(
-    "click",
-    function () {
+  document.addEventListener("click", function (event) {
 
-      if (sheetSelect.value) {
+  // Let the assembly dropdown work normally
+  if (event.target === sheetSelect) {
+    return;
+  }
 
-        focusScanner();
+  if (sheetSelect.value) {
+    focusScanner();
+  }
 
-      }
-
-    }
-  );
+});
 
 
   /*
